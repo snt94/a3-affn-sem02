@@ -37,15 +37,16 @@ export function setupBridgeSimulation(container, button) {
         background: "#1e1616",
       },
     });
+
     Render.run(render);
 
     runner = Runner.create();
     Runner.run(runner, engine);
 
-    // física desligada
-    world.engine.gravity.y = 0;
+    // physics off
+    world.gravity.y = 0;
 
-    // âncoras fixas
+    // fixed anchors
     leftAnchor = Bodies.circle(100, 250, 10, {
       isStatic: true,
       render: { fillStyle: "red" },
@@ -122,7 +123,7 @@ export function setupBridgeSimulation(container, button) {
     });
   }
 
-  // ⚙️ FUNÇÕES DE CRIAÇÃO
+  // Create things
   function createNode(x, y) {
     const node = Bodies.circle(x, y, 6, {
       density: 0.003,
@@ -163,7 +164,7 @@ export function setupBridgeSimulation(container, button) {
     buildMode = false;
     button.innerText = "Construir";
 
-    world.engine.gravity.y = 1; // ativa gravidade
+    world.gravity.y = 1; // enables gravity
 
     // aplicar força no ponto azul
     setTimeout(() => {
@@ -193,5 +194,5 @@ export function setupBridgeSimulation(container, button) {
 
   resetScene(); // initializes everything
 
-  return {};
+  return { world, nodes, edges };
 }
