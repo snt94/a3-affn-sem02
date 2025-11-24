@@ -1,140 +1,19 @@
-:root{
-  --bg: #171314;            /* fundo escuro */
-  --panel: #1f1b1a;         /* painel/área do canvas */
-  --muted: #bdb6ad;         /* texto secundário */
-  --accent: #d9b887;        /* cor das barras/macarrão */
-  --accent-strong: #caa474; /* cor barra destaque */
-  --danger: #e04b4b;        /* vermelho âncoras */
-  --primary: #1f6feb;       /* azul para ações (se necessário) */
-  --glass: rgba(255,255,255,0.04);
-  --radius: 10px;
-  --shadow: 0 6px 18px rgba(0,0,0,0.45);
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+:root {
+  background-color: rgb(53, 53, 53);
 }
 
-/* Reset básico */
-* { box-sizing: border-box; margin: 0; padding: 0; }
-html,body { height: 100%; background: var(--bg); color: #fff; }
-
-/* Layout */
-body {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  padding: 28px;
-  align-items: stretch;
-}
-
-/* Cabeçalho */
 h1 {
-  font-size: clamp(20px, 3.2vw, 42px);
-  font-weight: 700;
-  color: #fff;
-  letter-spacing: -0.02em;
-  margin-bottom: 8px;
-}
-
-/* Conteúdo do simulador: container + controles */
-.simulator-row {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 18px;
-  align-items: start;
-}
-
-/* Container do canvas */
-#bridgeContainer {
-  width: 100%;
-  height: clamp(360px, 60vh, 720px);
-  background: var(--panel);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-  padding: 12px;
-  overflow: hidden;
-  position: relative;
-  border: 1px solid rgba(255,255,255,0.03);
-}
-
-/* Área lateral de controles (botões, info) */
-.controls {
-  width: 220px;
-  max-width: 28%;
   display: flex;
-  flex-direction: column;
-  gap: 12px;
-  align-items: stretch;
+  flex-shrink: inherit;
+  justify-content: center;
+  color: burlywood;
 }
 
-/* Peso atual e outros textos */
-#peso {
-  background: linear-gradient(180deg, rgba(255,255,255,0.02), transparent);
-  border-radius: 8px;
-  padding: 10px 12px;
-  color: var(--muted);
-  font-weight: 600;
-  font-size: 15px;
-  border: 1px solid rgba(255,255,255,0.03);
-  box-shadow: 0 4px 14px rgba(0,0,0,0.35) inset;
+#bridgeContainer {
+  display: flex;
+  justify-content: center;
 }
 
-/* Botão principal */
-button#simulateBtn {
-  background: linear-gradient(180deg, var(--accent), var(--accent-strong));
-  color: #111;
-  font-weight: 700;
-  padding: 10px 14px;
-  border-radius: 8px;
-  border: none;
-  cursor: pointer;
-  box-shadow: 0 8px 20px rgba(202,164,116,0.18);
-  transition: transform .12s ease, box-shadow .12s ease, opacity .12s ease;
-  font-size: 15px;
-}
-
-button#simulateBtn:hover { transform: translateY(-2px); box-shadow: 0 14px 28px rgba(202,164,116,0.22); }
-button#simulateBtn:active { transform: translateY(0); }
-
-/* Botões secundários (reset, etc) */
-button.secondary {
-  background: transparent;
-  color: var(--muted);
-  border: 1px solid rgba(255,255,255,0.04);
-  padding: 8px 12px;
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: 600;
-}
-
-/* Responsividade: em telas pequenas, controles embaixo */
-@media (max-width: 880px) {
-  .simulator-row {
-    grid-template-columns: 1fr;
-  }
-  .controls {
-    width: 100%;
-    max-width: none;
-    flex-direction: row;
-    gap: 10px;
-    justify-content: space-between;
-  }
-  #peso { flex: 1; }
-  button#simulateBtn { flex: 0 0 auto; min-width: 120px; }
-}
-
-/* Estética pequena para os nós (se precisar via CSS) */
-.node-dot {
-  width: 14px; height: 14px; border-radius: 50%;
-  display: inline-block;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.45);
-  border: 2px solid rgba(255,255,255,0.06);
-}
-
-/* Mensagens/feedback */
-.feedback {
-  font-size: 13px;
-  color: var(--muted);
-  padding: 8px 10px;
-  border-radius: 8px;
-  background: var(--glass);
-  border: 1px solid rgba(255,255,255,0.02);
+canvas {
+  border-radius: 15px;
 }
