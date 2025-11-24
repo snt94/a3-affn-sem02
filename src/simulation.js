@@ -7,22 +7,32 @@ export function setupBridgeSimulation(container, button) {
   const Mouse = Matter.Mouse;
   const MouseConstraint = Matter.MouseConstraint;
   const Constraint = Matter.Constraint;
+  const Vector = Matter.Vector;
 
   let engine, render, runner, world;
   let nodes = [];
   let edges = [];
-  let leftAnchor, rightAnchor, centerPoint;
+
+  let leftAnchor, rightAnchor;
+
+
+  let centerPoint = {
+    x: 450,
+    y: 250,
+    radius: 12,
+    color: "blue",
+    isAnchor: true,
+  };
+
+  let centerBody = null;
 
   let buildMode = true;
-  let dragStartNode = null;
-  let dragGhost = null;
 
-  // Reset Scene
   function resetScene() {
     if (render) Render.stop(render);
     if (runner) Runner.stop(runner);
 
-    container.innerHTML = ""; // clear canvas
+    container.innerHTML = "";
 
     engine = Engine.create();
     world = engine.world;
@@ -39,91 +49,102 @@ export function setupBridgeSimulation(container, button) {
     });
 
     Render.run(render);
-
     runner = Runner.create();
     Runner.run(runner, engine);
 
-    // physics off
     world.gravity.y = 0;
 
-    // fixed anchors
-    leftAnchor = Bodies.circle(100, 250, 10, {
-      isStatic: true,
-      render: { fillStyle: "red" },
-    });
-    rightAnchor = Bodies.circle(800, 250, 10, {
+    leftAnchor = Bodies.circle(100, 250, 12, {
       isStatic: true,
       render: { fillStyle: "red" },
     });
 
-    centerPoint = Bodies.circle(450, 250, 10, {
+    rightAnchor = Bodies.circle(800, 250, 12, {
       isStatic: true,
-      render: { fillStyle: "blue" },
+      render: { fillStyle: "red" },
     });
 
-    Composite.add(world, [leftAnchor, rightAnchor, centerPoint]);
+    Composite.add(world, [leftAnchor, rightAnchor]);
 
     nodes = [];
     edges = [];
+    centerBody = null;
 
     initBuildMode();
+
+
+    const ctx = render.context;
+    (function drawBlue() {
+      ctx.beginPath();
+      ctx.arc(centerPoint.x, centerPoint.y, centerPoint.radius, 0, Math.PI * 2);
+      ctx.fillStyle = "blue";
+      ctx.fill();
+      requestAnimationFrame(drawBlue);
+    })();
   }
 
-  // Build Mode
   function initBuildMode() {
     const mouse = Mouse.create(render.canvas);
+    let pendingNode = null;
 
-    render.canvas.addEventListener("mousedown", (e) => {
-      if (!buildMode) return;
-      const pos = mouse.position;
-      const hit = getNodeUnder(pos);
+    function getAnchorUnder(pos) {
+      const anchors = buildMode
+        ? [leftAnchor, rightAnchor]
+        : [leftAnchor, rightAnchor, centerBody];
 
-      if (hit) {
-        dragStartNode = hit;
-      } else {
-        dragStartNode = createNode(pos.x, pos.y);
-      }
-
-      dragGhost = Constraint.create({
-        bodyA: dragStartNode,
-        pointB: { x: pos.x, y: pos.y },
-        stiffness: 0,
-        render: { strokeStyle: "#ffffff80", lineWidth: 2 },
+      return anchors.find((a) => {
+        const dx = a.position.x - pos.x;
+        const dy = a.position.y - pos.y;
+        return dx * dx + dy * dy < a.circleRadius * a.circleRadius;
       });
+    }
 
-      Composite.add(world, dragGhost);
-    });
+    function isInsideBlue(p) {
+      const dx = centerPoint.x - p.x;
+      const dy = centerPoint.y - p.y;
+      return dx * dx + dy * dy < centerPoint.radius * centerPoint.radius;
+    }
 
-    render.canvas.addEventListener("mousemove", () => {
-      if (!dragGhost || !buildMode) return;
+    render.canvas.addEventListener("mousedown", () => {
+      if (!buildMode) return;
+
       const pos = mouse.position;
-      dragGhost.pointB = { x: pos.x, y: pos.y };
-    });
 
-    render.canvas.addEventListener("mouseup", () => {
-      if (!dragStartNode || !buildMode) return;
 
-      const pos = Mouse.create(render.canvas).position;
-      let hit = getNodeUnder(pos);
-
-      if (dragGhost) {
-        Composite.remove(world, dragGhost);
-        dragGhost = null;
+      if (isInsideBlue(pos)) {
+        if (!pendingNode) {
+          pendingNode = { isBlue: true, x: centerPoint.x, y: centerPoint.y };
+        } else {
+          createRodFromXY(pendingNode, {
+            isBlue: true,
+            x: centerPoint.x,
+            y: centerPoint.y,
+          });
+          pendingNode = null;
+        }
+        return;
       }
 
-      if (!hit) {
-        hit = createNode(pos.x, pos.y);
-      }
 
-      if (hit !== dragStartNode) {
-        createRod(dragStartNode, hit);
-      }
+      let hit = getAnchorUnder(pos);
 
-      dragStartNode = null;
+
+      if (!hit) hit = getNodeUnder(pos);
+
+
+      if (!hit) hit = createNode(pos.x, pos.y);
+
+      if (!pendingNode) {
+        pendingNode = hit;
+        hit.render && (hit.render.fillStyle = "#fff7c4");
+      } else {
+        createRod(pendingNode, hit);
+        pendingNode.render && (pendingNode.render.fillStyle = "#ffe28a");
+        pendingNode = null;
+      }
     });
   }
 
-  // Create things
   function createNode(x, y) {
     const node = Bodies.circle(x, y, 6, {
       density: 0.003,
@@ -136,15 +157,53 @@ export function setupBridgeSimulation(container, button) {
   }
 
   function createRod(a, b) {
+
+    if (a.isBlue) return createRodFromXY(a, b);
+    if (b.isBlue) return createRodFromXY(a, b);
+
     const rod = Constraint.create({
       bodyA: a,
       bodyB: b,
       stiffness: 1,
-      length: Matter.Vector.magnitude(
-        Matter.Vector.sub(a.position, b.position)
-      ),
+      length: Vector.magnitude(Vector.sub(a.position, b.position)),
       render: { strokeStyle: "#caa474", lineWidth: 4 },
     });
+
+    edges.push(rod);
+    Composite.add(world, rod);
+  }
+
+
+function createRodFromXY(a, b) {
+  const endA = a.isBlue
+    ? { x: centerPoint.x, y: centerPoint.y }
+    : a.position;
+
+  const endB = b.isBlue
+    ? { x: centerPoint.x, y: centerPoint.y }
+    : b.position;
+
+  const rod = Constraint.create({
+    bodyA: a.isBlue ? null : a,
+    bodyB: b.isBlue ? null : b,
+
+    pointA: a.isBlue ? { x: 0, y: 0 } : { x: 0, y: 0 },
+    pointB: b.isBlue ? { x: 0, y: 0 } : { x: 0, y: 0 },
+
+
+    length: Vector.magnitude(
+      Vector.sub(endA, endB)
+    ),
+
+    stiffness: 1,
+    render: { strokeStyle: "#caa474", lineWidth: 4 }
+  });
+
+  edges.push(rod);
+  Composite.add(world, rod);
+
+
+
     edges.push(rod);
     Composite.add(world, rod);
   }
@@ -157,42 +216,64 @@ export function setupBridgeSimulation(container, button) {
     });
   }
 
-  // ▶️ SIMULAÇÃO
   function simulate() {
     if (!buildMode) return;
 
     buildMode = false;
     button.innerText = "Construir";
 
-    world.gravity.y = 1; // enables gravity
+    world.gravity.y = 1;
 
-    // aplicar força no ponto azul
-    setTimeout(() => {
-      Matter.Body.setStatic(centerPoint, false);
-      Matter.Body.applyForce(centerPoint, centerPoint.position, {
-        x: 0,
-        y: 0.05,
-      });
-    }, 300);
+
+    centerBody = Bodies.circle(centerPoint.x, centerPoint.y, 12, {
+      isStatic: false,
+      frictionAir: 0.1,
+      inertia: Infinity, // impede rotação
+      render: { fillStyle: "blue" },
+    });
+
+    Composite.add(world, centerBody);
+
+
+    Matter.Body.setStatic(centerBody, false);
+    centerBody.ignoreGravity = true;
+
+
+    Matter.Events.on(engine, "beforeUpdate", () => {
+      const force = Matter.Vector.mult(
+        Matter.Vector.sub(centerPoint, centerBody.position),
+        0.002
+      );
+      Matter.Body.applyForce(centerBody, centerBody.position, force);
+    });
+
+
+    edges.forEach((e) => {
+      if (e.pointA && e.pointA.x === centerPoint.x) {
+        e.bodyA = centerBody;
+        e.pointA = { x: 0, y: 0 };
+      }
+      if (e.pointB && e.pointB.x === centerPoint.x) {
+        e.bodyB = centerBody;
+        e.pointB = { x: 0, y: 0 };
+      }
+    });
   }
 
-  // Switch mode (Build, Simulate)
   function goToBuildMode() {
     if (buildMode) return;
-
     buildMode = true;
     button.innerText = "Simular";
-
     resetScene();
   }
 
-  // Button
   button.addEventListener("click", () => {
     if (buildMode) simulate();
     else goToBuildMode();
   });
 
-  resetScene(); // initializes everything
+  resetScene();
 
   return { world, nodes, edges };
 }
+
