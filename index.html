@@ -8,16 +8,66 @@
 </head>
 
 <body>
+<div class="wrapper">
+  <header>
+    <h1>Simulador de Ponte</h1>
+    <p class="intro">
+      Bem-vindo ao Simulador de Ponte! Desenvolvido pelos alunos da Universidade São Judas Tadeu,
+      este projeto busca transformar conceitos estruturais em uma experiência visual, simples e interativa.
+    </p>
+  </header>
 
-  <h1>Simulador de Ponte</h1>
+  <section class="sobre">
+    <h2>Sobre o Projeto</h2>
+    <p>
+      Este simulador foi criado como parte do Projeto Integrador A3. O objetivo é demonstrar, de forma prática,
+      como forças, pesos e conexões influenciam a estabilidade de uma ponte.
+    </p>
+  </section>
 
-  <div id="bridgeContainer"></div>
-  <button id="simulateBtn">Simular</button>
+  <section class="iniciativa">
+    <h2>Iniciativa</h2>
+    <p>
+      A iniciativa surgiu do desejo de unir aprendizado, programação e engenharia de maneira acessível e moderna,
+      criando uma ferramenta educacional dinâmica e envolvente.
+    </p>
+  </section>
 
-  <div id="peso" style="font-size: 20px; margin: 10px;"></div>
+  <section class="objetivo">
+    <h2>Objetivo</h2>
+    <p>
+      Nosso foco é fornecer uma visualização clara e intuitiva dos princípios estruturais,
+      tornando o estudo mais leve, didático e interessante.
+    </p>
+  </section>
+
+  <section class="simulador">
+    <div id="bridgeContainer"></div>
+    <button id="simulateBtn">Simular</button>
+    <div id="peso" style="font-size: 20px; margin: 10px;"></div>
+  </section>
+
+  <footer>
+    <h3>Equipe de Desenvolvimento</h3>
+    <ul>
+      <li>Christian Rech Ortiz</li>
+      <li>Daniel Trindade Lousão</li>
+      <li>Eduardo Luís de Andrade Santos</li>
+      <li>Igor Alves Boaventura</li>
+      <li>Pietro Enrico Furlan</li>
+    </ul>
+
+    <h3>Professores Orientadores</h3>
+    <ul>
+      <li>Erica Caproni</li>
+      <li>Gilberto Murakami</li>
+    </ul>
+  </footer>
+</div>
 
   <script src="https://cdn.jsdelivr.net/npm/matter-js@0.19.0/build/matter.min.js"></script>
   <script type="module" src="src/main.js"></script>
 </body>
+
 
 </html>

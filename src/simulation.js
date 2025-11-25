@@ -5,7 +5,6 @@ export function setupBridgeSimulation(container, button) {
   const Bodies = Matter.Bodies;
   const Composite = Matter.Composite;
   const Mouse = Matter.Mouse;
-  const MouseConstraint = Matter.MouseConstraint;
   const Constraint = Matter.Constraint;
   const Vector = Matter.Vector;
 
@@ -15,7 +14,6 @@ export function setupBridgeSimulation(container, button) {
 
   let leftAnchor, rightAnchor;
 
-
   let centerPoint = {
     x: 450,
     y: 250,
@@ -23,6 +21,8 @@ export function setupBridgeSimulation(container, button) {
     color: "blue",
     isAnchor: true,
   };
+
+  let centerStatic = null;
 
   let centerBody = null;
 
@@ -72,7 +72,6 @@ export function setupBridgeSimulation(container, button) {
 
     initBuildMode();
 
-
     const ctx = render.context;
     (function drawBlue() {
       ctx.beginPath();
@@ -110,7 +109,6 @@ export function setupBridgeSimulation(container, button) {
 
       const pos = mouse.position;
 
-
       if (isInsideBlue(pos)) {
         if (!pendingNode) {
           pendingNode = { isBlue: true, x: centerPoint.x, y: centerPoint.y };
@@ -125,12 +123,9 @@ export function setupBridgeSimulation(container, button) {
         return;
       }
 
-
       let hit = getAnchorUnder(pos);
 
-
       if (!hit) hit = getNodeUnder(pos);
-
 
       if (!hit) hit = createNode(pos.x, pos.y);
 
@@ -157,7 +152,6 @@ export function setupBridgeSimulation(container, button) {
   }
 
   function createRod(a, b) {
-
     if (a.isBlue) return createRodFromXY(a, b);
     if (b.isBlue) return createRodFromXY(a, b);
 
@@ -173,36 +167,24 @@ export function setupBridgeSimulation(container, button) {
     Composite.add(world, rod);
   }
 
+  function createRodFromXY(a, b) {
+    const bodyA = a.isBlue ? centerStatic : a;
+    const bodyB = b.isBlue ? centerStatic : b;
 
-function createRodFromXY(a, b) {
-  const endA = a.isBlue
-    ? { x: centerPoint.x, y: centerPoint.y }
-    : a.position;
-
-  const endB = b.isBlue
-    ? { x: centerPoint.x, y: centerPoint.y }
-    : b.position;
-
-  const rod = Constraint.create({
-    bodyA: a.isBlue ? null : a,
-    bodyB: b.isBlue ? null : b,
-
-    pointA: a.isBlue ? { x: 0, y: 0 } : { x: 0, y: 0 },
-    pointB: b.isBlue ? { x: 0, y: 0 } : { x: 0, y: 0 },
-
-
-    length: Vector.magnitude(
-      Vector.sub(endA, endB)
-    ),
-
-    stiffness: 1,
-    render: { strokeStyle: "#caa474", lineWidth: 4 }
-  });
-
-  edges.push(rod);
-  Composite.add(world, rod);
-
-
+    const rod = Constraint.create({
+      bodyA,
+      bodyB,
+      pointA: { x: 0, y: 0 },
+      pointB: { x: 0, y: 0 },
+      length: Vector.magnitude(
+        Vector.sub(
+          a.isBlue ? centerStatic.position : a.position,
+          b.isBlue ? centerStatic.position : b.position
+        )
+      ),
+      stiffness: 1,
+      render: { strokeStyle: "#caa474", lineWidth: 4 },
+    });
 
     edges.push(rod);
     Composite.add(world, rod);
@@ -224,7 +206,6 @@ function createRodFromXY(a, b) {
 
     world.gravity.y = 1;
 
-
     centerBody = Bodies.circle(centerPoint.x, centerPoint.y, 12, {
       isStatic: false,
       frictionAir: 0.1,
@@ -234,10 +215,8 @@ function createRodFromXY(a, b) {
 
     Composite.add(world, centerBody);
 
-
     Matter.Body.setStatic(centerBody, false);
     centerBody.ignoreGravity = true;
-
 
     Matter.Events.on(engine, "beforeUpdate", () => {
       const force = Matter.Vector.mult(
@@ -246,7 +225,6 @@ function createRodFromXY(a, b) {
       );
       Matter.Body.applyForce(centerBody, centerBody.position, force);
     });
-
 
     edges.forEach((e) => {
       if (e.pointA && e.pointA.x === centerPoint.x) {
@@ -272,8 +250,14 @@ function createRodFromXY(a, b) {
     else goToBuildMode();
   });
 
+  centerStatic = Bodies.circle(centerPoint.x, centerPoint.y, 12, {
+    isStatic: true,
+    render: { visible: false },
+  });
+
+  Composite.add(world, centerStatic);
+
   resetScene();
 
   return { world, nodes, edges };
 }
-
