@@ -192,7 +192,7 @@ export function setupBridgeSimulation(container, button) {
     // Criar ponto DINÂMICO azul
     centerBody = Bodies.circle(centerPoint.x, centerPoint.y, 12, {
       isStatic: false,
-      frictionAir: 0.02,
+      frictionAir: 0.01,
       inertia: Infinity,
       render: { fillStyle: "blue" },
     });
