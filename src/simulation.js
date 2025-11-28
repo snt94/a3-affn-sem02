@@ -1,32 +1,17 @@
 export function setupBridgeSimulation(container, button) {
-  const Engine = Matter.Engine;
-  const Render = Matter.Render;
-  const Runner = Matter.Runner;
-  const Bodies = Matter.Bodies;
-  const Composite = Matter.Composite;
-  const Mouse = Matter.Mouse;
-  const Constraint = Matter.Constraint;
-  const Vector = Matter.Vector;
+  const { Engine, Render, Runner, Bodies, Composite, Constraint, Vector } =
+    Matter;
 
   let engine, render, runner, world;
   let nodes = [];
   let edges = [];
 
   let leftAnchor, rightAnchor;
-
-  let centerPoint = {
-    x: 450,
-    y: 250,
-    radius: 12,
-    color: "blue",
-    isAnchor: true,
-  };
-
-  let centerStatic = null;
-
-  let centerBody = null;
+  let centerStatic, centerBody;
 
   let buildMode = true;
+
+  const centerPoint = { x: 450, y: 250, radius: 12 };
 
   function resetScene() {
     if (render) Render.stop(render);
@@ -36,6 +21,7 @@ export function setupBridgeSimulation(container, button) {
 
     engine = Engine.create();
     world = engine.world;
+    world.gravity.y = 0;
 
     render = Render.create({
       element: container,
@@ -52,8 +38,6 @@ export function setupBridgeSimulation(container, button) {
     runner = Runner.create();
     Runner.run(runner, engine);
 
-    world.gravity.y = 0;
-
     leftAnchor = Bodies.circle(100, 250, 12, {
       isStatic: true,
       render: { fillStyle: "red" },
@@ -64,198 +48,175 @@ export function setupBridgeSimulation(container, button) {
       render: { fillStyle: "red" },
     });
 
-    Composite.add(world, [leftAnchor, rightAnchor]);
+    centerStatic = Bodies.circle(centerPoint.x, centerPoint.y, 12, {
+      isStatic: true,
+      render: { fillStyle: "blue" },
+    });
+
+    Composite.add(world, [leftAnchor, rightAnchor, centerStatic]);
 
     nodes = [];
     edges = [];
-    centerBody = null;
 
     initBuildMode();
-
-    const ctx = render.context;
-    (function drawBlue() {
-      ctx.beginPath();
-      ctx.arc(centerPoint.x, centerPoint.y, centerPoint.radius, 0, Math.PI * 2);
-      ctx.fillStyle = "blue";
-      ctx.fill();
-      requestAnimationFrame(drawBlue);
-    })();
   }
 
   function initBuildMode() {
-    const mouse = Mouse.create(render.canvas);
-    let pendingNode = null;
+    let pending = null;
 
-    function getAnchorUnder(pos) {
-      const anchors = buildMode
+    function pos(evt) {
+      const rect = render.canvas.getBoundingClientRect();
+      const scaleX = render.canvas.width / rect.width;
+      const scaleY = render.canvas.height / rect.height;
+
+      return {
+        x: ((evt.touches?.[0].clientX ?? evt.clientX) - rect.left) * scaleX,
+        y: ((evt.touches?.[0].clientY ?? evt.clientY) - rect.top) * scaleY,
+      };
+    }
+
+    function insideBlue(p) {
+      const dx = p.x - centerPoint.x;
+      const dy = p.y - centerPoint.y;
+      return dx * dx + dy * dy < centerPoint.radius * centerPoint.radius;
+    }
+
+    function anchorAt(p) {
+      const list = buildMode
         ? [leftAnchor, rightAnchor]
         : [leftAnchor, rightAnchor, centerBody];
 
-      return anchors.find((a) => {
-        const dx = a.position.x - pos.x;
-        const dy = a.position.y - pos.y;
+      return list.find((a) => {
+        const dx = p.x - a.position.x;
+        const dy = p.y - a.position.y;
         return dx * dx + dy * dy < a.circleRadius * a.circleRadius;
       });
     }
 
-    function isInsideBlue(p) {
-      const dx = centerPoint.x - p.x;
-      const dy = centerPoint.y - p.y;
-      return dx * dx + dy * dy < centerPoint.radius * centerPoint.radius;
+    function nodeAt(p) {
+      return nodes.find((n) => {
+        const dx = p.x - n.position.x;
+        const dy = p.y - n.position.y;
+        return dx * dx + dy * dy < 12 * 12;
+      });
     }
 
-    render.canvas.addEventListener("mousedown", () => {
+    function createNode(x, y) {
+      const n = Bodies.circle(x, y, 6, {
+        density: 0.003,
+        frictionAir: 0.02,
+        render: { fillStyle: "#ffe28a" },
+      });
+      nodes.push(n);
+      Composite.add(world, n);
+      return n;
+    }
+
+    function createRod(a, b) {
+      if (a.isBlue || b.isBlue) return createRodBlue(a, b);
+
+      const rod = Constraint.create({
+        bodyA: a,
+        bodyB: b,
+        stiffness: 1,
+        length: Vector.magnitude(Vector.sub(a.position, b.position)),
+        render: { strokeStyle: "#caa474", lineWidth: 4 },
+      });
+
+      edges.push(rod);
+      Composite.add(world, rod);
+    }
+
+    function createRodBlue(a, b) {
+      const A = a.isBlue ? centerStatic : a;
+      const B = b.isBlue ? centerStatic : b;
+
+      const rod = Constraint.create({
+        bodyA: A,
+        bodyB: B,
+        stiffness: 1,
+        length: Vector.magnitude(
+          Vector.sub(
+            a.isBlue ? centerStatic.position : a.position,
+            b.isBlue ? centerStatic.position : b.position
+          )
+        ),
+        render: { strokeStyle: "#caa474", lineWidth: 4 },
+      });
+
+      rod.isBlueConnection = true;
+
+      edges.push(rod);
+      Composite.add(world, rod);
+    }
+
+    function click(evt) {
       if (!buildMode) return;
+      evt.preventDefault();
 
-      const pos = mouse.position;
+      const p = pos(evt);
 
-      if (isInsideBlue(pos)) {
-        if (!pendingNode) {
-          pendingNode = { isBlue: true, x: centerPoint.x, y: centerPoint.y };
-        } else {
-          createRodFromXY(pendingNode, {
-            isBlue: true,
-            x: centerPoint.x,
-            y: centerPoint.y,
-          });
-          pendingNode = null;
+      if (insideBlue(p)) {
+        if (!pending) pending = { isBlue: true };
+        else {
+          createRodBlue(pending, { isBlue: true });
+          pending = null;
         }
         return;
       }
 
-      let hit = getAnchorUnder(pos);
+      let hit = anchorAt(p) || nodeAt(p) || createNode(p.x, p.y);
 
-      if (!hit) hit = getNodeUnder(pos);
-
-      if (!hit) hit = createNode(pos.x, pos.y);
-
-      if (!pendingNode) {
-        pendingNode = hit;
+      if (!pending) {
+        pending = hit;
         hit.render && (hit.render.fillStyle = "#fff7c4");
       } else {
-        createRod(pendingNode, hit);
-        pendingNode.render && (pendingNode.render.fillStyle = "#ffe28a");
-        pendingNode = null;
+        createRod(pending, hit);
+        pending.render && (pending.render.fillStyle = "#ffe28a");
+        pending = null;
       }
-    });
-  }
+    }
 
-  function createNode(x, y) {
-    const node = Bodies.circle(x, y, 6, {
-      density: 0.003,
-      frictionAir: 0.02,
-      render: { fillStyle: "#ffe28a" },
-    });
-    nodes.push(node);
-    Composite.add(world, node);
-    return node;
-  }
-
-  function createRod(a, b) {
-    if (a.isBlue) return createRodFromXY(a, b);
-    if (b.isBlue) return createRodFromXY(a, b);
-
-    const rod = Constraint.create({
-      bodyA: a,
-      bodyB: b,
-      stiffness: 1,
-      length: Vector.magnitude(Vector.sub(a.position, b.position)),
-      render: { strokeStyle: "#caa474", lineWidth: 4 },
-    });
-
-    edges.push(rod);
-    Composite.add(world, rod);
-  }
-
-  function createRodFromXY(a, b) {
-    const bodyA = a.isBlue ? centerStatic : a;
-    const bodyB = b.isBlue ? centerStatic : b;
-
-    const rod = Constraint.create({
-      bodyA,
-      bodyB,
-      pointA: { x: 0, y: 0 },
-      pointB: { x: 0, y: 0 },
-      length: Vector.magnitude(
-        Vector.sub(
-          a.isBlue ? centerStatic.position : a.position,
-          b.isBlue ? centerStatic.position : b.position
-        )
-      ),
-      stiffness: 1,
-      render: { strokeStyle: "#caa474", lineWidth: 4 },
-    });
-
-    edges.push(rod);
-    Composite.add(world, rod);
-  }
-
-  function getNodeUnder(pos) {
-    return nodes.find((n) => {
-      const dx = n.position.x - pos.x;
-      const dy = n.position.y - pos.y;
-      return dx * dx + dy * dy < 12 * 12;
-    });
+    render.canvas.addEventListener("mousedown", click);
+    render.canvas.addEventListener("touchstart", click, { passive: false });
   }
 
   function simulate() {
-    if (!buildMode) return;
-
     buildMode = false;
     button.innerText = "Construir";
 
     world.gravity.y = 1;
 
+    // Criar ponto DINÂMICO azul
     centerBody = Bodies.circle(centerPoint.x, centerPoint.y, 12, {
       isStatic: false,
       frictionAir: 0.1,
-      inertia: Infinity, // impede rotação
+      inertia: Infinity,
       render: { fillStyle: "blue" },
     });
 
-    Composite.add(world, centerBody);
-
-    Matter.Body.setStatic(centerBody, false);
-    centerBody.ignoreGravity = true;
-
-    Matter.Events.on(engine, "beforeUpdate", () => {
-      const force = Matter.Vector.mult(
-        Matter.Vector.sub(centerPoint, centerBody.position),
-        0.002
-      );
-      Matter.Body.applyForce(centerBody, centerBody.position, force);
-    });
+    Composite.remove(world, centerStatic);
 
     edges.forEach((e) => {
-      if (e.pointA && e.pointA.x === centerPoint.x) {
-        e.bodyA = centerBody;
-        e.pointA = { x: 0, y: 0 };
-      }
-      if (e.pointB && e.pointB.x === centerPoint.x) {
-        e.bodyB = centerBody;
-        e.pointB = { x: 0, y: 0 };
+      if (e.isBlueConnection) {
+        if (e.bodyA === centerStatic) e.bodyA = centerBody;
+        if (e.bodyB === centerStatic) e.bodyB = centerBody;
       }
     });
+
+    Composite.add(world, centerBody);
   }
 
-  function goToBuildMode() {
-    if (buildMode) return;
-    buildMode = true;
-    button.innerText = "Simular";
-    resetScene();
-  }
-
-  button.addEventListener("click", () => {
+  function build() {
     if (buildMode) simulate();
-    else goToBuildMode();
-  });
+    else {
+      buildMode = true;
+      button.innerText = "Simular";
+      resetScene();
+    }
+  }
 
-  centerStatic = Bodies.circle(centerPoint.x, centerPoint.y, 12, {
-    isStatic: true,
-    render: { visible: false },
-  });
-
-  Composite.add(world, centerStatic);
+  button.addEventListener("click", build);
 
   resetScene();
 
