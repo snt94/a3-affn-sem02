@@ -123,6 +123,8 @@ export function setupBridgeSimulation(container, button) {
         render: { strokeStyle: "#caa474", lineWidth: 4 },
       });
 
+      rod.maxForce = 0.8;
+
       edges.push(rod);
       Composite.add(world, rod);
     }
@@ -190,10 +192,12 @@ export function setupBridgeSimulation(container, button) {
     // Criar ponto DINÂMICO azul
     centerBody = Bodies.circle(centerPoint.x, centerPoint.y, 12, {
       isStatic: false,
-      frictionAir: 0.1,
+      frictionAir: 0.02,
       inertia: Infinity,
       render: { fillStyle: "blue" },
     });
+
+    Matter.Body.setMass(centerBody, 30);
 
     Composite.remove(world, centerStatic);
 
@@ -202,6 +206,27 @@ export function setupBridgeSimulation(container, button) {
         if (e.bodyA === centerStatic) e.bodyA = centerBody;
         if (e.bodyB === centerStatic) e.bodyB = centerBody;
       }
+    });
+
+    Matter.Events.on(engine, "afterUpdate", () => {
+      edges.forEach((e) => {
+        if (!e.bodyA || !e.bodyB) return;
+
+        // Força atual na barra (aproximação simples)
+        const current = Vector.magnitude(
+          Vector.sub(e.bodyA.position, e.bodyB.position)
+        );
+
+        const stretch = Math.abs(current - e.length);
+
+        // Peso da barra + comportamento: alongamento indica tensão
+        if (stretch > e.maxForce) {
+          Composite.remove(world, e);
+          e.broken = true;
+        }
+      });
+
+      edges = edges.filter((e) => !e.broken);
     });
 
     Composite.add(world, centerBody);
