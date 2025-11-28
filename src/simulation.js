@@ -230,6 +230,17 @@ export function setupBridgeSimulation(container, button) {
     });
 
     Composite.add(world, centerBody);
+
+    const rope = Constraint.create({
+      pointA: { x: centerPoint.x, y: centerPoint.y }, // ponto fixo original
+      bodyB: centerBody,
+      length: 200, // tamanho da corda (ajuste)
+      stiffness: 0.001,      // bem elástico
+      damping: 0.01,
+      render: { strokeStyle: "blue", lineWidth: 2 },
+    });
+
+    Composite.add(world, rope);
   }
 
   function build() {
